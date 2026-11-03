@@ -1,7 +1,9 @@
 const { adminAuth } = require("../config/firebase");
 
-// Verify Firebase authentication token
-async function requireAuth(req, res, next) {
+// Verify a Firebase ID token. Anonymous credentials are accepted only
+// for the chatbot preview; all other protected endpoints require a
+// verified email account.
+async function verifyFirebaseToken(req, res, next, allowAnonymous = false) {
   try {
     const authorization = req.headers.authorization || "";
 
@@ -13,10 +15,18 @@ async function requireAuth(req, res, next) {
     }
 
     const idToken = authorization.substring(7);
-
     const decodedToken = await adminAuth.verifyIdToken(idToken, true);
+    const isAnonymous =
+      decodedToken.firebase?.sign_in_provider === "anonymous";
 
-    if (!decodedToken.email_verified) {
+    if (isAnonymous && !allowAnonymous) {
+      return res.status(403).json({
+        success: false,
+        error: "Guest preview access is limited to the chatbot.",
+      });
+    }
+
+    if (!isAnonymous && !decodedToken.email_verified) {
       return res.status(403).json({
         success: false,
         error: "Please verify your email address.",
@@ -24,8 +34,8 @@ async function requireAuth(req, res, next) {
     }
 
     req.user = decodedToken;
-    next();
-
+    req.isGuest = isAnonymous;
+    return next();
   } catch (error) {
     return res.status(401).json({
       success: false,
@@ -34,19 +44,27 @@ async function requireAuth(req, res, next) {
   }
 }
 
-// Administrator authorization
+function requireAuth(req, res, next) {
+  return verifyFirebaseToken(req, res, next, false);
+}
+
+function requireChatAuth(req, res, next) {
+  return verifyFirebaseToken(req, res, next, true);
+}
+
 function requireAdmin(req, res, next) {
-  if (req.user?.admin !== true) {
+  if (req.user?.admin !== true || req.isGuest) {
     return res.status(403).json({
       success: false,
       error: "Administrator access required.",
     });
   }
 
-  next();
+  return next();
 }
 
 module.exports = {
   requireAuth,
+  requireChatAuth,
   requireAdmin,
 };

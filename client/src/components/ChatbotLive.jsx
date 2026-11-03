@@ -1,91 +1,108 @@
-import { useEffect, useRef, useState } from 'react'
+
+import { useEffect, useRef, useState } from "react";
+
 import {
   Bot,
   Send,
-  ShieldCheck,
   User,
   ArrowUpRight,
-} from 'lucide-react'
+  ShieldCheck,
+} from "lucide-react";
 
-import { sendChatMessage } from '../services/api'
+import { sendChatMessage } from "../services/api";
 
 function getSessionId() {
-  const storageKey = 'finland-cyber-session-id'
+  const storageKey = "finland-cyber-session-id";
 
-  let id = sessionStorage.getItem(storageKey)
+  let id = sessionStorage.getItem(storageKey);
 
   if (!id) {
-    id = crypto.randomUUID()
-    sessionStorage.setItem(storageKey, id)
+    id = crypto.randomUUID();
+    sessionStorage.setItem(storageKey, id);
   }
 
-  return id
+  return id;
 }
 
-export default function ChatbotLive({ setActive }) {
-  const [sessionId] = useState(getSessionId)
+export default function ChatbotLive({
+  setActive,
+  isGuest = false,
+}) {
+  const [sessionId] = useState(getSessionId);
 
   const [messages, setMessages] = useState([
     {
-      role: 'assistant',
+      role: "assistant",
       text: "Hello! I'm the Finland Cybersecurity Assistant. How can I help you with cybersecurity today?",
     },
-  ])
+  ]);
 
-  const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const bottomRef = useRef(null)
+  const bottomRef = useRef(null);
 
   const suggestions = [
-    'What is phishing?',
-    'My account has been hacked',
-    'How do I report cybercrime in Finland?',
-  ]
+    "What is phishing?",
+    "My account has been hacked",
+    "How do I report cybercrime in Finland?",
+    "What is malware?",
+    "How can I protect my personal data?",
+  ];
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [messages, loading]);
 
   async function sendMessage(value = input) {
-    const message = value.trim()
+    const message = value.trim();
 
-    if (!message || loading) return
+    if (!message || loading) return;
 
     setMessages((previous) => [
       ...previous,
-      { role: 'user', text: message },
-    ])
+      {
+        role: "user",
+        text: message,
+      },
+    ]);
 
-    setInput('')
-    setLoading(true)
+    setInput("");
+    setLoading(true);
 
     try {
-      const result = await sendChatMessage(message, sessionId)
+      const result = await sendChatMessage(
+        message,
+        sessionId
+      );
 
       setMessages((previous) => [
         ...previous,
         {
-          role: 'assistant',
-          text: result.reply,
+          role: "assistant",
+          text:
+            result.reply ||
+            "I couldn't find a suitable answer. Please try rephrasing your question.",
         },
-      ])
+      ]);
     } catch (error) {
       setMessages((previous) => [
         ...previous,
         {
-          role: 'assistant',
+          role: "assistant",
           text: `I couldn't reach the assistant service: ${error.message}. Please try again.`,
         },
-      ])
+      ]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   function handleSubmit(event) {
-    event.preventDefault()
-    sendMessage()
+    event.preventDefault();
+    sendMessage();
   }
 
   return (
@@ -93,13 +110,15 @@ export default function ChatbotLive({ setActive }) {
 
       {/* Chat header */}
       <div className="flex items-center gap-3 border-b border-slate-800 p-4">
-        <div className="rounded-xl bg-cyan-400/10 p-3 text-cyan-400">
-          <ShieldCheck size={23} />
-        </div>
+        <img
+          src="/favicon.svg"
+          alt=""
+          className="h-11 w-11"
+        />
 
         <div className="flex-1">
           <h3 className="text-sm font-semibold text-white">
-            Finland Cyber Assistant
+            Finland Cybersecurity Assistant
           </h3>
 
           <p className="mt-1 flex items-center gap-1.5 text-xs text-emerald-400">
@@ -113,7 +132,21 @@ export default function ChatbotLive({ setActive }) {
         </span>
       </div>
 
-      {/* Messages */}
+      {/* Guest information */}
+      {isGuest && (
+        <div className="border-b border-cyan-400/10 bg-cyan-400/5 px-4 py-3">
+          <p className="text-xs text-cyan-300">
+            <ShieldCheck
+              size={14}
+              className="mr-1 inline"
+            />
+            Guest preview mode — your conversation is for
+            demonstration purposes.
+          </p>
+        </div>
+      )}
+
+      {/* Chat messages */}
       <div
         className="flex-1 space-y-5 overflow-y-auto p-4 md:p-6"
         aria-live="polite"
@@ -122,17 +155,19 @@ export default function ChatbotLive({ setActive }) {
           <div
             key={`${index}-${message.role}`}
             className={`flex items-start gap-3 ${
-              message.role === 'user' ? 'flex-row-reverse' : ''
+              message.role === "user"
+                ? "flex-row-reverse"
+                : ""
             }`}
           >
             <div
               className={`rounded-xl p-2 ${
-                message.role === 'assistant'
-                  ? 'bg-cyan-400/10 text-cyan-400'
-                  : 'bg-slate-700 text-white'
+                message.role === "assistant"
+                  ? "bg-cyan-400/10 text-cyan-400"
+                  : "bg-slate-700 text-white"
               }`}
             >
-              {message.role === 'assistant' ? (
+              {message.role === "assistant" ? (
                 <Bot size={18} />
               ) : (
                 <User size={18} />
@@ -141,9 +176,9 @@ export default function ChatbotLive({ setActive }) {
 
             <div
               className={`max-w-[85%] whitespace-pre-wrap rounded-2xl px-4 py-3 text-sm leading-6 ${
-                message.role === 'assistant'
-                  ? 'rounded-tl-sm bg-slate-800 text-slate-200'
-                  : 'rounded-tr-sm bg-cyan-500/15 text-cyan-50'
+                message.role === "assistant"
+                  ? "rounded-tl-sm bg-slate-800 text-slate-200"
+                  : "rounded-tr-sm bg-cyan-500/15 text-cyan-50"
               }`}
             >
               {message.text}
@@ -153,7 +188,10 @@ export default function ChatbotLive({ setActive }) {
 
         {loading && (
           <div className="flex items-center gap-2 text-sm text-slate-400">
-            <Bot size={17} className="text-cyan-400" />
+            <Bot
+              size={17}
+              className="text-cyan-400"
+            />
             Assistant is thinking...
           </div>
         )}
@@ -161,7 +199,7 @@ export default function ChatbotLive({ setActive }) {
         <div ref={bottomRef} />
       </div>
 
-      {/* Suggested questions and message input */}
+      {/* Suggested questions and input */}
       <div className="border-t border-slate-800 p-4">
         <p className="mb-3 text-xs text-slate-500">
           SUGGESTED QUESTIONS
@@ -187,7 +225,9 @@ export default function ChatbotLive({ setActive }) {
         >
           <input
             value={input}
-            onChange={(event) => setInput(event.target.value)}
+            onChange={(event) =>
+              setInput(event.target.value)
+            }
             placeholder="Ask about a cybersecurity concern..."
             maxLength={1000}
             disabled={loading}
@@ -205,18 +245,21 @@ export default function ChatbotLive({ setActive }) {
         </form>
 
         <p className="mt-3 text-center text-[10px] text-slate-600">
-          Guidance is informational and is not a substitute for professional
-          incident response.
+          Guidance is informational and is not a substitute
+          for professional incident response.
         </p>
 
-        <button
-          type="button"
-          onClick={() => setActive('Report Incident')}
-          className="mx-auto mt-2 flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
-        >
-          Need to report an incident? <ArrowUpRight size={13} />
-        </button>
+        {!isGuest && (
+          <button
+            type="button"
+            onClick={() => setActive("Report Incident")}
+            className="mx-auto mt-2 flex items-center gap-1 text-xs text-cyan-400 hover:text-cyan-300"
+          >
+            Need to report an incident?
+            <ArrowUpRight size={13} />
+          </button>
+        )}
       </div>
     </div>
-  )
+  );
 }

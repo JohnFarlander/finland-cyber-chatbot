@@ -1,14 +1,28 @@
 const express = require("express");
 const { detectIntent } = require("../services/dialogflow");
-const { requireAuth } = require("../middleware/auth");
+const { requireChatAuth } = require("../middleware/auth");
+const rateLimit = require("express-rate-limit");
 
 const router = express.Router();
 
-router.post("/chat", requireAuth, async (req, res) => {
+// A tighter per-IP limit protects the public guest preview from excessive
+// Dialogflow traffic. The global API limiter in server.js still applies too.
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "The demo chat limit has been reached. Please try again later.",
+  },
+});
+
+// Verified users and anonymous portfolio-demo users may use the chatbot.
+router.post("/chat", chatLimiter, requireChatAuth, async (req, res) => {
   try {
     const { message, sessionId } = req.body;
 
-    // Validate message
     if (
       typeof message !== "string" ||
       !message.trim() ||
@@ -19,7 +33,6 @@ router.post("/chat", requireAuth, async (req, res) => {
       });
     }
 
-    // Dialogflow session IDs must be 1–36 characters
     if (
       typeof sessionId !== "string" ||
       !/^[A-Za-z0-9_-]{1,36}$/.test(sessionId)
