@@ -11,20 +11,8 @@ const incidentRoutes = require("./routes/incidents");
 
 const app = express();
 
-// Trust the hosting platform's reverse proxy.
+// Trust Render's reverse proxy.
 app.set("trust proxy", 1);
-
-// Rate limiter
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: "Too many requests. Please try again later.",
-  },
-});
 
 // Security middleware
 app.use(helmet());
@@ -37,8 +25,6 @@ app.use(
 
 app.use(express.json({ limit: "10kb" }));
 
-app.use("/api", apiLimiter);
-
 // Root endpoint
 app.get("/", (req, res) => {
   res.json({
@@ -46,13 +32,27 @@ app.get("/", (req, res) => {
   });
 });
 
-// Health-check endpoint
+// Health check — intentionally excluded from rate limiting.
 app.get("/api/health", (req, res) => {
-  res.json({
+  res.status(200).json({
     status: "OK",
     service: "Finland Cybersecurity Assistant",
   });
 });
+
+// Rate limiter — applies to application API routes.
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: "Too many requests. Please try again later.",
+  },
+});
+
+app.use("/api", apiLimiter);
 
 // API routes
 app.use("/api", chatRoutes);
